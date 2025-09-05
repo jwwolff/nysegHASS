@@ -1,0 +1,9 @@
+{
+  "entity": {
+    "sensor": {
+      "energy": {
+        "default": "mdi:speedometer"
+      }
+    }
+  }
+}

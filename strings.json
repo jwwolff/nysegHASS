@@ -1,0 +1,37 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "description": "[%key:common::config_flow::description::confirm_setup%]"
+      }
+    },
+    "abort": {
+      "single_instance_allowed": "[%key:common::config_flow::abort::single_instance_allowed%]"
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "data": {
+          "username": "",
+          "password": ""
+        }
+      }
+    }
+  },
+  "entity": {
+    "sensor": {
+      "energy": {
+        "name": "Energy",
+        "state_attributes": {
+          "username": {
+            "name": "Username"
+          },
+          "password": {
+            "name": "Password"
+          }
+        }
+      }
+    }
+  }
+}
