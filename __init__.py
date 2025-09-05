@@ -1,96 +1,83 @@
-"""
-The nyseg custom component.
-
-This component implements scraping nyseg for daily energy values.
-
-Configuration:
-
-To use the hello_world component you will need to add the following to your
-configuration.yaml file.
-
-nyseg:
-"""
 from __future__ import annotations
 
-import asyncio
 from datetime import timedelta
 import logging
 
 import async_timeout
 from homeassistant.core import HomeAssistant
+from homeassistant.config_entries import ConfigEntry
 from homeassistant.helpers.typing import ConfigType
-from homeassistant.core import callback
-from homeassistant.exceptions import ConfigEntryAuthFailed
 from homeassistant.helpers.update_coordinator import (
-    CoordinatorEntity,
     DataUpdateCoordinator,
+    CoordinatorEntity,
     UpdateFailed,
 )
+from homeassistant.components.sensor import SensorEntity
+from homeassistant.const import ENERGY_KILO_WATT_HOUR
 
-# The domain of your component. Should be equal to the name of your component.
+_LOGGER = logging.getLogger(__name__)
 DOMAIN = "nyseg"
 
+async def nysegFetch() -> tuple[str, float]:
+    """Mock function to fetch energy usage data from NYSEG."""
+    # Replace this with actual scraping or API logic
+    from datetime import date
+    return date.today().isoformat(), 12.34  # Example: ("2025-09-04", 12.34 kWh)
 
-@asyncio.coroutine
-def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
-    """Setup our skeleton component."""
-    # States are in the format DOMAIN.OBJECT_ID.
-    hass.states.async_set('nyseg.energyUsage', [])
-    coordinator = MyCoordinator(hass, config_entry, my_api)
+async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
+    """Set up the nyseg integration via configuration.yaml (legacy)."""
+    return True  # Prefer config entry setup
 
-    # Return boolean to indicate that initialization was successfully.
+async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
+    """Set up nyseg from a config entry."""
+    coordinator = NysegDataUpdateCoordinator(hass)
+    await coordinator.async_config_entry_first_refresh()
+
+    hass.data.setdefault(DOMAIN, {})[entry.entry_id] = coordinator
+
+    hass.helpers.entity_platform.async_add_entities(
+        [NysegEnergySensor(coordinator)],
+        update_before_add=True
+    )
+
     return True
 
-class MyCoordinator(DataUpdateCoordinator):
-    """My custom coordinator."""
+class NysegDataUpdateCoordinator(DataUpdateCoordinator):
+    """Coordinator to fetch NYSEG energy usage daily."""
 
-    def __init__(self, hass, config_entry, my_api):
-        """Initialize my coordinator."""
+    def __init__(self, hass: HomeAssistant):
         super().__init__(
             hass,
             _LOGGER,
-            # Name of the data. For logging purposes.
-            name="My sensor",
-            config_entry=config_entry,
-            # Polling interval. Will only be polled if there are subscribers.
-            update_interval=timedelta(seconds=30),
-            # Set always_update to `False` if the data returned from the
-            # api can be compared via `__eq__` to avoid duplicate updates
-            # being dispatched to listeners
-            always_update=True
+            name="NYSEG Energy Coordinator",
+            update_interval=timedelta(days=1),
         )
-        self.my_api = my_api
-        self._device: MyDevice | None = None
-
-    async def _async_setup(self):
-        """Set up the coordinator
-
-        This is the place to set up your coordinator,
-        or to load data, that only needs to be loaded once.
-
-        This method will be called automatically during
-        coordinator.async_config_entry_first_refresh.
-        """
-        self._device = await self.my_api.get_device()
 
     async def _async_update_data(self):
-        """Fetch data from API endpoint.
-
-        This is the place to pre-process the data to lookup tables
-        so entities can quickly look up their data.
-        """
+        """Fetch the latest energy usage data."""
         try:
-            # Note: asyncio.TimeoutError and aiohttp.ClientError are already
-            # handled by the data update coordinator.
             async with async_timeout.timeout(10):
-                # Grab active context variables to limit data required to be fetched from API
-                # Note: using context is not required if there is no need or ability to limit
-                # data retrieved from API.
-                listening_idx = set(self.async_contexts())
-                return await self.my_api.fetch_data(listening_idx)
-        except ApiAuthError as err:
-            # Raising ConfigEntryAuthFailed will cancel future updates
-            # and start a config flow with SOURCE_REAUTH (async_step_reauth)
-            raise ConfigEntryAuthFailed from err
-        except ApiError as err:
-            raise UpdateFailed(f"Error communicating with API: {err}")
+                date_str, energy_value = await nysegFetch()
+                return {"date": date_str, "energy": energy_value}
+        except Exception as err:
+            raise UpdateFailed(f"Failed to fetch NYSEG data: {err}")
+
+class NysegEnergySensor(CoordinatorEntity, SensorEntity):
+    """Sensor entity to report daily NYSEG energy usage."""
+
+    def __init__(self, coordinator: NysegDataUpdateCoordinator):
+        super().__init__(coordinator)
+        self._attr_name = "NYSEG Energy Usage"
+        self._attr_unique_id = "nyseg_energy_usage"
+        self._attr_unit_of_measurement = ENERGY_KILO_WATT_HOUR
+        self._attr_device_class = "energy"
+
+    @property
+    def state(self):
+        return self.coordinator.data.get("energy")
+
+    @property
+    def extra_state_attributes(self):
+        return {
+            "date": self.coordinator.data.get("date")
+        }
