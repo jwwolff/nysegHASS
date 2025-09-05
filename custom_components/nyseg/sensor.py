@@ -51,9 +51,9 @@ async def async_setup_entry(
     async_add_entities: AddConfigEntryEntitiesCallback,
 ) -> None:
     """Set up the NYSEG sensors."""
-    speedtest_coordinator = config_entry.runtime_data
+    coordinator = config_entry.runtime_data
     async_add_entities(
-        NysegSensor(speedtest_coordinator, description)
+        NysegSensor(coordinator, description)
         for description in SENSOR_TYPES
     )
 
@@ -80,7 +80,6 @@ class NysegSensor(CoordinatorEntity[NysegDataCoordinator], SensorEntity):
             identifiers={(DOMAIN, self.coordinator.config_entry.entry_id)},
             name=DEFAULT_NAME,
             entry_type=DeviceEntryType.SERVICE,
-            configuration_url="https://www.speedtest.net/",
         )
 
     @property
