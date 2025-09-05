@@ -1,0 +1,10 @@
+{
+    "domain": "nyseg",
+    "name": "nyseg",
+    "codeowners": ["jwwolff","goog"],
+    "dependencies": [],
+    "documentation": "",
+    "iot_class": "local_polling",
+    "requirements": ["selenium==4.35.0"],
+    "version": "0.1.0"
+}
